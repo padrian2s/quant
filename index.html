@@ -26,6 +26,9 @@
             font-size: 24px;
             font-family: Menlo, Monaco, 'Courier New', monospace;
             border-bottom: 1px solid #333;
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
 
         .content {
@@ -91,17 +94,136 @@
             background: rgba(255,255,255,0.9);
             padding: 2px 6px;
         }
+
+        .shortcut-hint {
+            position: fixed;
+            bottom: 10px;
+            right: 14px;
+            font-size: 18px;
+            color: #999;
+            font-family: Menlo, Monaco, 'Courier New', monospace;
+            background: rgba(255,255,255,0.9);
+            padding: 2px 8px;
+        }
+
+        /* TOC Overlay */
+        .toc-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.6);
+            z-index: 500;
+        }
+
+        .toc-overlay.visible {
+            display: block;
+        }
+
+        .toc {
+            position: fixed;
+            top: 40px;
+            left: 40px;
+            right: 40px;
+            bottom: 40px;
+            background: #fff;
+            border: 3px solid #4a4a4a;
+            border-radius: 8px;
+            z-index: 501;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .toc-header {
+            background-color: #4a4a4a;
+            color: #ccc;
+            padding: 14px 20px;
+            font-size: 26px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .toc-close {
+            cursor: pointer;
+            font-size: 32px;
+            color: #ccc;
+            line-height: 1;
+        }
+
+        .toc-close:hover {
+            color: #fff;
+        }
+
+        .toc-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 20px;
+        }
+
+        .toc-item {
+            display: block;
+            padding: 10px 8px;
+            color: #00c;
+            text-decoration: none;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+            font-size: 22px;
+        }
+
+        .toc-item:hover {
+            background: #f0f0f0;
+        }
+
+        .toc-h1 {
+            font-weight: bold;
+            font-size: 24px;
+        }
+
+        .toc-h2 {
+            padding-left: 30px;
+            font-size: 22px;
+        }
+
+        .toc-h3 {
+            padding-left: 60px;
+            font-size: 20px;
+        }
+
+        .toc-h4 {
+            padding-left: 90px;
+            font-size: 18px;
+        }
     </style>
 </head>
 <body>
     <div class="header">explicatii_quant_book.md</div>
     <div class="content" id="content"></div>
     <div class="progress" id="progress">0%</div>
+    <div class="shortcut-hint">[T] TOC</div>
+
+    <div class="toc-overlay" id="toc-overlay">
+        <div class="toc">
+            <div class="toc-header">
+                <span>Table of Contents</span>
+                <span class="toc-close" id="toc-close">✕</span>
+            </div>
+            <div class="toc-content" id="toc-content"></div>
+        </div>
+    </div>
 
     <script>
+        let headings = [];
+        let hid = 0;
+
         function parse(md) {
             const lines = md.split('\n');
             let out = '';
+            headings = [];
+            hid = 0;
 
             for (let i = 0; i < lines.length; i++) {
                 let line = lines[i];
@@ -127,7 +249,11 @@
 
                 let h = line.match(/^(#{1,6})\s+(.*)$/);
                 if (h) {
-                    out += '<span class="line"><span class="heading">' + h[1] + ' ' + fmt(h[2]) + '</span></span>';
+                    let id = 'heading-' + hid++;
+                    let level = h[1].length;
+                    let text = h[2].replace(/\*\*/g, '');
+                    headings.push({ id, level, text, hashes: h[1] });
+                    out += '<span class="line" id="' + id + '"><span class="heading">' + h[1] + ' ' + fmt(h[2]) + '</span></span>';
                     continue;
                 }
 
@@ -165,9 +291,62 @@
             return t;
         }
 
+        function buildTOC() {
+            let html = '';
+            for (let h of headings) {
+                let cls = 'toc-item toc-h' + h.level;
+                html += '<div class="' + cls + '" data-target="' + h.id + '">' + h.hashes + ' ' + h.text + '</div>';
+            }
+            document.getElementById('toc-content').innerHTML = html;
+
+            document.querySelectorAll('.toc-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    let el = document.getElementById(item.dataset.target);
+                    if (el) {
+                        hideTOC();
+                        setTimeout(() => {
+                            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }, 100);
+                    }
+                });
+            });
+        }
+
+        function showTOC() {
+            document.getElementById('toc-overlay').classList.add('visible');
+        }
+
+        function hideTOC() {
+            document.getElementById('toc-overlay').classList.remove('visible');
+        }
+
+        function toggleTOC() {
+            document.getElementById('toc-overlay').classList.toggle('visible');
+        }
+
+        // Keyboard: T = toggle TOC, Escape = close
+        document.addEventListener('keydown', (e) => {
+            if ((e.key === 't' || e.key === 'T') && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                e.preventDefault();
+                toggleTOC();
+            }
+            if (e.key === 'Escape') {
+                hideTOC();
+            }
+        });
+
+        document.getElementById('toc-close').addEventListener('click', hideTOC);
+
+        document.getElementById('toc-overlay').addEventListener('click', (e) => {
+            if (e.target.id === 'toc-overlay') hideTOC();
+        });
+
         fetch('explicatii_quant_book.md')
             .then(r => r.text())
-            .then(md => { document.getElementById('content').innerHTML = parse(md); });
+            .then(md => {
+                document.getElementById('content').innerHTML = parse(md);
+                buildTOC();
+            });
 
         window.addEventListener('scroll', () => {
             let h = document.documentElement.scrollHeight - window.innerHeight;
