@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>explicatii_quant_book.md</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Menlo, Monaco, 'Courier New', monospace;
+            font-size: 24px;
+            line-height: 1.4;
+            color: #000;
+            background-color: #fff;
+        }
+
+        .header {
+            background-color: #4a4a4a;
+            color: #ccc;
+            padding: 10px 16px;
+            font-size: 24px;
+            font-family: Menlo, Monaco, 'Courier New', monospace;
+            border-bottom: 1px solid #333;
+        }
+
+        .content {
+            padding: 20px 24px;
+        }
+
+        .line {
+            display: block;
+            min-height: 34px;
+        }
+
+        .heading {
+            color: #00c;
+            font-weight: bold;
+        }
+
+        .hr {
+            border: none;
+            border-top: 2px solid #999;
+            margin: 16px 0;
+        }
+
+        .blockquote {
+            background-color: #f0f0f0;
+            border-left: 5px solid #999;
+            margin: 10px 0;
+            padding: 12px 18px;
+            display: block;
+        }
+
+        .bq-text {
+            font-style: italic;
+        }
+
+        .bold {
+            font-weight: bold;
+        }
+
+        .italic {
+            font-style: italic;
+        }
+
+        .code {
+            background-color: #e5e5e5;
+            padding: 0 4px;
+        }
+
+        .indent1 {
+            padding-left: 40px;
+        }
+
+        .indent2 {
+            padding-left: 80px;
+        }
+
+        .progress {
+            position: fixed;
+            bottom: 10px;
+            left: 14px;
+            font-size: 24px;
+            color: #666;
+            font-family: Menlo, Monaco, 'Courier New', monospace;
+            background: rgba(255,255,255,0.9);
+            padding: 2px 6px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">explicatii_quant_book.md</div>
+    <div class="content" id="content"></div>
+    <div class="progress" id="progress">0%</div>
+
+    <script>
+        function parse(md) {
+            const lines = md.split('\n');
+            let out = '';
+
+            for (let i = 0; i < lines.length; i++) {
+                let line = lines[i];
+                let trim = line.trim();
+
+                if (trim === '') {
+                    out += '<span class="line"></span>';
+                    continue;
+                }
+
+                if (/^-{3,}$/.test(trim)) {
+                    out += '<hr class="hr">';
+                    continue;
+                }
+
+                if (/^\|[-|\s]+\|$/.test(trim)) continue;
+
+                if (trim.startsWith('|') && trim.endsWith('|')) {
+                    const cells = trim.slice(1, -1).split('|').map(c => c.trim());
+                    out += '<span class="line">| ' + cells.map(c => fmt(c)).join(' | ') + ' |</span>';
+                    continue;
+                }
+
+                let h = line.match(/^(#{1,6})\s+(.*)$/);
+                if (h) {
+                    out += '<span class="line"><span class="heading">' + h[1] + ' ' + fmt(h[2]) + '</span></span>';
+                    continue;
+                }
+
+                if (trim.startsWith('>')) {
+                    let txt = trim.replace(/^>\s*/, '');
+                    out += '<div class="blockquote"><span class="bq-text">' + fmt(txt) + '</span></div>';
+                    continue;
+                }
+
+                let sp = line.match(/^(\s*)/)[1].length;
+                let cls = sp >= 4 ? 'indent2' : sp >= 2 ? 'indent1' : '';
+
+                let ul = line.match(/^(\s*)-\s+(.*)$/);
+                if (ul) {
+                    out += '<span class="line ' + cls + '">- ' + fmt(ul[2]) + '</span>';
+                    continue;
+                }
+
+                let ol = line.match(/^(\s*)(\d+)\.\s+(.*)$/);
+                if (ol) {
+                    out += '<span class="line ' + cls + '">' + ol[2] + '. ' + fmt(ol[3]) + '</span>';
+                    continue;
+                }
+
+                out += '<span class="line">' + fmt(line) + '</span>';
+            }
+            return out;
+        }
+
+        function fmt(t) {
+            t = t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            t = t.replace(/\*\*([^*]+)\*\*/g, '<span class="bold">$1</span>');
+            t = t.replace(/\*([^*]+)\*/g, '<span class="italic">$1</span>');
+            t = t.replace(/`([^`]+)`/g, '<span class="code">$1</span>');
+            return t;
+        }
+
+        fetch('explicatii_quant_book.md')
+            .then(r => r.text())
+            .then(md => { document.getElementById('content').innerHTML = parse(md); });
+
+        window.addEventListener('scroll', () => {
+            let h = document.documentElement.scrollHeight - window.innerHeight;
+            let p = h > 0 ? Math.round((window.scrollY / h) * 100) : 0;
+            document.getElementById('progress').textContent = p + '%';
+        });
+    </script>
+</body>
+</html>
